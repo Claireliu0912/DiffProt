@@ -4,9 +4,9 @@ The implementation for "Self-Interpretable Graph Fraud Detection via Diffusion-B
 
 ## Requirements
 
-- Python >= 3.8
-- PyTorch >= 1.8.0
-- DGL >= 0.7.0
+- Python 3.11.5
+- PyTorch 2.1.0
+- DGL 1.1.2
 - NumPy, SciPy, SymPy, scikit-learn
 
 ## Usage

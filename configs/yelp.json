@@ -4,7 +4,7 @@
     "h_feats": 32,
     "order": 4,
     "homo": 0,
-    "epoch": 150,
+    "epoch": 200,
     "device_id": "1",
     "encoder": "BWGNN",
     "num_prototypes_per_class": 8,
@@ -20,5 +20,6 @@
     "P_std": 1.2,
     "sigma_data": 0.5,
     "num_rels": 3,
-    "sparsity": 0.5
+    "sparsity": 0.5,
+    "ld_margin": 0.3
 }

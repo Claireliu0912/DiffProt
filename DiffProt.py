@@ -387,6 +387,7 @@ class DiffProt_here(nn.Module):
 
         self.num_prototypes_per_rel = self.output_dim * self.num_prototypes_per_class
         self.num_prototypes = self.num_rels * self.num_prototypes_per_rel
+        self.rel_weights = nn.Parameter(torch.ones(self.num_rels) / self.num_rels)
 
         self.encoder = encoder.lower()
         self.convs = nn.ModuleList()
@@ -511,7 +512,9 @@ class DiffProt_here(nn.Module):
             prototype_activations_all.append(proto_act_rel)
             min_distances_all.append(min_dist_rel)
 
-        h_aggregated = torch.stack(h_gnn_all).sum(0)
+        h_stacked = torch.stack(h_gnn_all).sum(0)
+        weights = torch.softmax(self.rel_weights, dim=0).view(-1, 1, 1)
+        h_aggregated = (h_stacked * weights).sum(dim=0)
         h = self.act(h_aggregated)
 
         # prototype

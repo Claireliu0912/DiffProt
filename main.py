@@ -66,14 +66,16 @@ def train(model, g, args):
             cluster_cost = torch.mean(torch.min(min_distances_train[prototypes_of_correct_class].reshape(-1, args.num_prototypes_per_class), dim=1)[0])
 
             #seperation loss
-            separation_cost = -torch.mean(torch.min(min_distances_train[~prototypes_of_correct_class].reshape(-1, (num_classes-1)*args.num_prototypes_per_class), dim=1)[0])
+            num_incorrect_p = (num_classes-1)*args.num_prototypes_per_class
+            closest_incorrect_dist = torch.min(min_distances_train[~prototypes_of_correct_class].reshape(-1, num_incorrect_p), dim=1)[0]
+            separation_cost = -torch.mean(F.relu(closest_incorrect_dist))
 
             #diversity loss
             ld = 0
             for k in range(num_classes):
                 p = model.prototypes[k*args.num_prototypes_per_class: (k+1)*args.num_prototypes_per_class]
                 p = F.normalize(p, p=2, dim=1)
-                matrix1 = torch.mm(p, torch.t(p)) - torch.eye(p.shape[0]).to(args.device) - 0.3
+                matrix1 = torch.mm(p, torch.t(p)) - torch.eye(p.shape[0]).to(args.device) - args.ld_margin
                 matrix2 = torch.zeros(matrix1.shape).to(args.device)
                 ld += torch.sum(torch.where(matrix1 > 0, matrix1, matrix2))
 
@@ -102,24 +104,25 @@ def train(model, g, args):
 
             # Separation cost
             if num_incorrect_p > 0:
-                separation_cost = -torch.mean(torch.min(min_distances_train[~prototypes_of_correct_class].reshape(-1, num_incorrect_p), dim=1)[0])
+                closest_incorrect_dist = torch.min(min_distances_train[~prototypes_of_correct_class].reshape(-1, num_incorrect_p), dim=1)[0]
+                separation_cost = -torch.mean(F.relu(closest_incorrect_dist))            
             else:
                 separation_cost = torch.tensor(0.0).to(args.device)
 
 
             ld = 0
             for i in range(model.num_rels):
-                for k in range(model.output_dim):
+                for k in range(num_classes):
                     start_idx = k * model.num_prototypes_per_class
                     end_idx = (k + 1) * model.num_prototypes_per_class
                     
                     rel_offset = i * model.num_prototypes_per_rel
-                    global_start = rel_offset + start_idx
-                    global_end = rel_offset + end_idx
-                    p = model.prototypes[global_start:global_end]
+                    prot_start = rel_offset + start_idx
+                    prot_end = rel_offset + end_idx
+                    p = model.prototypes[prot_start:prot_end]
                     
                     p = F.normalize(p, p=2, dim=1)
-                    matrix1 = torch.mm(p, torch.t(p)) - torch.eye(p.shape[0]).to(args.device) - 0.3
+                    matrix1 = torch.mm(p, torch.t(p)) - torch.eye(p.shape[0]).to(args.device) - args.ld_margin
                     matrix2 = torch.zeros(matrix1.shape).to(args.device)
                     ld += torch.sum(torch.where(matrix1 > 0, matrix1, matrix2))
 
@@ -234,11 +237,8 @@ def train(model, g, args):
         if len(epoch_fid_plus) > 0:
             avg_fid_plus = np.mean(epoch_fid_plus)
             avg_fid_minus = np.mean(epoch_fid_minus)
-            combined_score = avg_fid_plus - avg_fid_minus
             print(f"Average fid+: {avg_fid_plus:.4f}")
             print(f"Average fid-: {avg_fid_minus:.4f}")
-            print(f"fid+ - fid-: {combined_score:.4f}")
-        
         else:
             print(f"  Warning: No valid samples found for sparsity {node_sparsity}")
 
@@ -293,7 +293,7 @@ if __name__ == '__main__':
     num_classes = args.num_classes
 
     logging.basicConfig(
-        filename=f'log/{args.log_name}_{args.dataset}.log',
+        filename=f'log/{args.log_name}.log',
         filemode='a', 
         format='%(asctime)s - %(levelname)s - %(message)s',
         level=logging.INFO
